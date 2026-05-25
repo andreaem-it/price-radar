@@ -62,18 +62,19 @@ export const amazonScraper: PlaywrightScraperPlugin = {
 
   async extract(params: ScrapeExtractParams, _ctx: ScrapeContext, page: Page): Promise<RawProductData> {
     const title =
-      (await page.locator('#productTitle').textContent())?.trim() ??
-      (await page.locator('span#title').textContent())?.trim() ??
+      (await page.locator('#productTitle').first().textContent())?.trim() ??
+      (await page.locator('span#title').first().textContent())?.trim() ??
       '';
 
     const priceText =
       (await page.locator('#corePriceDisplay_desktop_feature_div .a-offscreen').first().textContent()) ??
-      (await page.locator('#priceblock_ourprice').textContent()) ??
+      (await page.locator('#priceblock_ourprice').first().textContent()) ??
       (await page.locator('.a-price .a-offscreen').first().textContent());
 
     const availability =
-      (await page.locator('#availability').textContent()) ??
-      (await page.locator('#outOfStock').textContent());
+      (await page.locator('#availabilityInsideBuyBox_feature_div #availability').first().textContent()) ??
+      (await page.locator('#outOfStock').first().textContent()) ??
+      (await page.locator('#availability').first().textContent());
 
     const imageUrl = await extractAmazonImageUrl(page);
 
