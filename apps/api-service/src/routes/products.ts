@@ -16,6 +16,10 @@ export const productRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(400).send({ error: `Unknown retailer: ${body.retailerSlug}` });
     }
 
+    if (!retailer.enabled) {
+      return reply.status(400).send({ error: `Retailer disabled: ${body.retailerSlug}` });
+    }
+
     const normalizedTitle = normalizeTitle(body.title);
     const now = new Date().toISOString();
 

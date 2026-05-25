@@ -41,20 +41,33 @@ export function runMigrations(databasePath: string, migrationsFolder: string): v
 export async function seedRetailers(databasePath: string): Promise<void> {
   const { db, sqlite } = createDatabase(databasePath);
 
-  const defaults = [
-    { slug: 'amazon', name: 'Amazon', baseUrl: 'https://www.amazon.it' },
-    { slug: 'unieuro', name: 'Unieuro', baseUrl: 'https://www.unieuro.it' },
-    { slug: 'mediaworld', name: 'MediaWorld', baseUrl: 'https://www.mediaworld.it' },
+  const retailers = [
+    { slug: 'amazon', name: 'Amazon', baseUrl: 'https://www.amazon.it', enabled: true },
+    { slug: 'unieuro', name: 'Unieuro', baseUrl: 'https://www.unieuro.it', enabled: false },
+    {
+      slug: 'mediaworld',
+      name: 'MediaWorld',
+      baseUrl: 'https://www.mediaworld.it',
+      enabled: false,
+    },
   ];
 
-  for (const retailer of defaults) {
+  const now = new Date().toISOString();
+
+  for (const retailer of retailers) {
     const existing = await db.query.retailers.findFirst({
       where: eq(schema.retailers.slug, retailer.slug),
     });
 
     if (!existing) {
       await db.insert(schema.retailers).values(retailer);
+      continue;
     }
+
+    await db
+      .update(schema.retailers)
+      .set({ enabled: retailer.enabled, updatedAt: now })
+      .where(eq(schema.retailers.slug, retailer.slug));
   }
 
   sqlite.close();

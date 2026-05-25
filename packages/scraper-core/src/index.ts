@@ -1,13 +1,9 @@
 import { ScraperRegistry } from './registry.js';
 import { amazonScraper } from './scrapers/amazon/index.js';
-import { mediaworldScraper } from './scrapers/mediaworld/index.js';
-import { unieuroScraper } from './scrapers/unieuro/index.js';
 
 export function createDefaultRegistry(): ScraperRegistry {
   const registry = new ScraperRegistry();
   registry.register(amazonScraper);
-  registry.register(unieuroScraper);
-  registry.register(mediaworldScraper);
   return registry;
 }
 
