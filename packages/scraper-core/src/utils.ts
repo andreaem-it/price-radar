@@ -36,14 +36,15 @@ export async function safeScreenshot(page: Page): Promise<Buffer | undefined> {
 }
 
 export async function extractAmazonImageUrl(page: Page): Promise<string | undefined> {
-  await page
-    .locator('#landingImage, meta[property="og:image"], #imgTagWrapperId img')
-    .first()
-    .waitFor({ state: 'attached', timeout: 5_000 })
-    .catch(() => undefined);
+  const readAttr = async (selector: string, attribute: string): Promise<string | null> => {
+    const locator = page.locator(selector).first();
+    if ((await locator.count()) === 0) return null;
+    return locator.getAttribute(attribute, { timeout: 2_000 }).catch(() => null);
+  };
 
   const dynamicUrl = await page
     .locator('#landingImage')
+    .first()
     .evaluate((el) => {
       const dynamic = el.getAttribute('data-a-dynamic-image');
       if (!dynamic) return null;
@@ -58,14 +59,14 @@ export async function extractAmazonImageUrl(page: Page): Promise<string | undefi
     .catch(() => null);
 
   const candidates = [
-    await page.locator('meta[property="og:image"]').getAttribute('content'),
-    await page.locator('#landingImage').getAttribute('data-old-hires'),
+    await readAttr('meta[property="og:image"]', 'content'),
+    await readAttr('#landingImage', 'data-old-hires'),
     dynamicUrl,
-    await page.locator('#landingImage').getAttribute('src'),
-    await page.locator('#imgTagWrapperId img').first().getAttribute('data-src'),
-    await page.locator('#imgTagWrapperId img').first().getAttribute('src'),
-    await page.locator('#main-image-container img').first().getAttribute('src'),
-    await page.locator('#imgBlkFront').getAttribute('src'),
+    await readAttr('#landingImage', 'src'),
+    await readAttr('#imgTagWrapperId img', 'data-src'),
+    await readAttr('#imgTagWrapperId img', 'src'),
+    await readAttr('#main-image-container img', 'src'),
+    await readAttr('#imgBlkFront', 'src'),
   ];
 
   for (const candidate of candidates) {
