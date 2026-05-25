@@ -11,6 +11,7 @@ import type {
 import type { PlaywrightScraperPlugin } from '../../registry.js';
 import {
   extractAmazonImageUrl,
+  extractAmazonPrice,
   extractExternalIdFromUrl,
   mapAvailability,
   parsePrice,
@@ -66,10 +67,7 @@ export const amazonScraper: PlaywrightScraperPlugin = {
       (await page.locator('span#title').first().textContent())?.trim() ??
       '';
 
-    const priceText =
-      (await page.locator('#corePriceDisplay_desktop_feature_div .a-offscreen').first().textContent()) ??
-      (await page.locator('#priceblock_ourprice').first().textContent()) ??
-      (await page.locator('.a-price .a-offscreen').first().textContent());
+    const price = await extractAmazonPrice(page);
 
     const availability =
       (await page.locator('#availabilityInsideBuyBox_feature_div #availability').first().textContent()) ??
@@ -85,7 +83,7 @@ export const amazonScraper: PlaywrightScraperPlugin = {
 
     return {
       title,
-      price: parsePrice(priceText),
+      price,
       currency: 'EUR',
       url: params.url,
       externalId,
