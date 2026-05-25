@@ -149,10 +149,21 @@ Le dipendenze **non sono le stesse** sulle due VM.
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
-corepack enable
-corepack prepare pnpm@latest --activate
+
+# pnpm 9.15.4 (compatibile Node 20) — metodo affidabile su server Linux
+sudo corepack disable
+sudo npm install -g pnpm@9.15.4
+
 node -v && pnpm -v
 ```
+
+> **Non usare `pnpm@latest` né `corepack prepare` su Node 20:** le versioni recenti di Corepack possono scaricare pnpm 11.x (richiede Node 22+) e fallire con `node:sqlite`.
+>
+> Alternativa senza npm globale:
+> ```bash
+> curl -fsSL https://get.pnpm.io/install.sh | env PNPM_VERSION=9.15.4 sh -
+> source ~/.bashrc
+> ```
 
 ### 2.2 Solo VM1 — Redis
 
@@ -213,7 +224,7 @@ Deploy del **lo stesso repository** su entrambe le VM (`/opt/price-radar`).
 cd /opt
 sudo mkdir -p price-radar
 sudo chown $USER:$USER price-radar
-git clone <url-repo> price-radar
+git clone https://github.com/andreaem-it/price-radar.git price-radar
 cd price-radar
 pnpm install
 pnpm build
@@ -650,6 +661,28 @@ SCHEDULER_INTERVAL_MS=300000   # ogni 5 minuti invece di 60s
 ---
 
 ## Troubleshooting
+
+### pnpm: `node:sqlite` o richiede Node 22+
+
+Corepack sta usando pnpm 11.x per errore. Fix:
+
+```bash
+sudo corepack disable
+rm -rf ~/.cache/node/corepack
+sudo npm install -g pnpm@9.15.4
+pnpm -v   # deve essere 9.15.4
+```
+
+### Git: `Permission denied (publickey)`
+
+La chiave SSH va **incollata su GitHub prima** del clone:
+
+1. `cat ~/.ssh/id_ed25519.pub` → copia tutto
+2. GitHub → **Settings → SSH and GPG keys → New SSH key**
+3. Verifica: `ssh -T git@github.com` (deve dire *Hi andreaem-it!*)
+4. Poi: `git clone git@github.com:andreaem-it/price-radar.git`
+
+Alternativa: rendi il repo **Public** e usa HTTPS, oppure usa un **Personal Access Token** al posto della password.
 
 ### Redis non raggiungibile
 

@@ -50,9 +50,9 @@ scheduler-service → Redis (BullMQ) → scraper-worker → SQLite
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
 
-# pnpm
-corepack enable
-corepack prepare pnpm@latest --activate
+# pnpm 9.15.4 (Node 20)
+sudo corepack disable
+sudo npm install -g pnpm@9.15.4
 
 # Redis
 sudo apt-get install -y redis-server
@@ -69,7 +69,7 @@ sudo npx playwright install-deps chromium
 ## Installazione
 
 ```bash
-git clone <repo-url> price-radar
+git clone https://github.com/andreaem-it/price-radar.git price-radar
 cd price-radar
 
 cp env.example .env
