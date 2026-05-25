@@ -10,6 +10,7 @@ import type {
 } from '@price-radar/types';
 import type { PlaywrightScraperPlugin } from '../../registry.js';
 import {
+  extractAmazonImageUrl,
   extractExternalIdFromUrl,
   mapAvailability,
   parsePrice,
@@ -76,10 +77,7 @@ export const amazonScraper: PlaywrightScraperPlugin = {
       (await page.locator('#availability').textContent()) ??
       (await page.locator('#outOfStock').textContent());
 
-    const imageUrl =
-      (await page.locator('#landingImage').getAttribute('src')) ??
-      (await page.locator('#imgTagWrapperId img').first().getAttribute('src')) ??
-      undefined;
+    const imageUrl = await extractAmazonImageUrl(page);
 
     const externalId =
       params.externalId ??

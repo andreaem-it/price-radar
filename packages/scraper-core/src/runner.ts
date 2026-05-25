@@ -88,6 +88,7 @@ export async function runExtractJob(
         externalId: normalized.externalId,
         price: normalized.price,
         currency: normalized.currency,
+        imageUrl: normalized.imageUrl ?? null,
       });
 
       return {

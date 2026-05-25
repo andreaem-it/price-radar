@@ -1,4 +1,5 @@
 import type { Page } from 'playwright';
+import { normalizeImageUrl } from '@price-radar/shared';
 
 export function parsePrice(text: string | null | undefined): number | null {
   if (!text) return null;
@@ -32,6 +33,49 @@ export async function safeScreenshot(page: Page): Promise<Buffer | undefined> {
   } catch {
     return undefined;
   }
+}
+
+export async function extractAmazonImageUrl(page: Page): Promise<string | undefined> {
+  await page
+    .locator('#landingImage, meta[property="og:image"], #imgTagWrapperId img')
+    .first()
+    .waitFor({ state: 'attached', timeout: 5_000 })
+    .catch(() => undefined);
+
+  const dynamicUrl = await page
+    .locator('#landingImage')
+    .evaluate((el) => {
+      const dynamic = el.getAttribute('data-a-dynamic-image');
+      if (!dynamic) return null;
+
+      try {
+        const urls = Object.keys(JSON.parse(dynamic) as Record<string, unknown>);
+        return urls.at(-1) ?? null;
+      } catch {
+        return null;
+      }
+    })
+    .catch(() => null);
+
+  const candidates = [
+    await page.locator('meta[property="og:image"]').getAttribute('content'),
+    await page.locator('#landingImage').getAttribute('data-old-hires'),
+    dynamicUrl,
+    await page.locator('#landingImage').getAttribute('src'),
+    await page.locator('#imgTagWrapperId img').first().getAttribute('data-src'),
+    await page.locator('#imgTagWrapperId img').first().getAttribute('src'),
+    await page.locator('#main-image-container img').first().getAttribute('src'),
+    await page.locator('#imgBlkFront').getAttribute('src'),
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate || candidate.startsWith('data:')) continue;
+
+    const normalized = normalizeImageUrl(candidate);
+    if (normalized) return normalized;
+  }
+
+  return undefined;
 }
 
 export function mapAvailability(text: string | null | undefined): 'in_stock' | 'out_of_stock' | 'unknown' {

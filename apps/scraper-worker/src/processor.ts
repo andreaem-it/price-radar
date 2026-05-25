@@ -12,6 +12,7 @@ import {
 import { createDefaultRegistry, runExtractJob } from '@price-radar/scraper-core';
 import type { AppConfig } from '@price-radar/shared';
 import type { Logger } from '@price-radar/shared';
+import { normalizeImageUrl } from '@price-radar/shared';
 import { QUEUE_NAMES } from '@price-radar/shared';
 import {
   TjApiError,
@@ -105,7 +106,10 @@ export async function processScrapeJob(
           currency: product.currency,
           availability: product.availability,
           source: job.data.source ?? config.tjApiSource,
-          image_url: product.imageUrl ?? job.data.imageUrl ?? null,
+          image_url:
+            normalizeImageUrl(product.imageUrl) ??
+            normalizeImageUrl(job.data.imageUrl) ??
+            null,
           brand: job.data.brand ?? null,
           category: job.data.category ?? null,
           detected_at: now,
@@ -117,6 +121,10 @@ export async function processScrapeJob(
         processed: pushResult.processed,
         updated: pushResult.updated,
         created: pushResult.created,
+        imageUrl:
+          normalizeImageUrl(product.imageUrl) ??
+          normalizeImageUrl(job.data.imageUrl) ??
+          null,
       });
     } catch (error) {
       const message =

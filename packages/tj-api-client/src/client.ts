@@ -109,6 +109,34 @@ export class TjApiClient {
     });
   }
 
+  private resolveFeedImageUrl(item: TjApiPriceFeedItem): string | null {
+    const candidate =
+      item.image_url ??
+      (item as TjApiPriceFeedItem & { imageUrl?: string | null }).imageUrl ??
+      (item as TjApiPriceFeedItem & { image?: string | null }).image;
+
+    if (!candidate?.trim()) {
+      return null;
+    }
+
+    let url = candidate.trim();
+    if (url.startsWith('//')) {
+      url = `https:${url}`;
+    } else if (/^http:\/\//i.test(url)) {
+      url = url.replace(/^http:\/\//i, 'https://');
+    }
+
+    if (!/^https:\/\//i.test(url)) {
+      return null;
+    }
+
+    if (/media-amazon\.com|images-amazon\.com|ssl-images-amazon/i.test(url)) {
+      url = url.replace(/\._AC_[A-Z0-9]+_/g, '._AC_SL1500_');
+    }
+
+    return url;
+  }
+
   private normalizeFeedItem(item: TjApiPriceFeedItem): TjApiPriceFeedItem {
     const asin = normalizeAsin(item.asin);
     if (!asin) {
@@ -131,7 +159,7 @@ export class TjApiClient {
       currency: item.currency ?? 'EUR',
       availability: item.availability ?? 'in_stock',
       source: item.source ?? this.config.defaultSource ?? 'amazon_it',
-      image_url: item.image_url ?? null,
+      image_url: this.resolveFeedImageUrl(item),
       brand: item.brand ?? null,
       category: item.category ?? null,
       detected_at: item.detected_at ?? new Date().toISOString(),
