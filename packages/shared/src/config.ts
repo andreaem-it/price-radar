@@ -109,18 +109,3 @@ export const QUEUE_NAMES = {
   SCRAPE: 'scrape-jobs',
   AI: 'ai-jobs',
 } as const;
-
-export const ANTI_BOT_PATTERNS = [
-  /captcha/i,
-  /robot/i,
-  /access denied/i,
-  /blocked/i,
-  /cloudflare/i,
-  /verify you are human/i,
-  /unusual traffic/i,
-];
-
-export function detectAntiBot(html: string, statusCode?: number): boolean {
-  if (statusCode === 403 || statusCode === 429) return true;
-  return ANTI_BOT_PATTERNS.some((pattern) => pattern.test(html));
-}

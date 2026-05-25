@@ -1,4 +1,6 @@
-export { loadConfig, ensureDataDirs, saveFailureArtifacts, normalizeTitle, QUEUE_NAMES, detectAntiBot } from './config.js';
+export { loadConfig, ensureDataDirs, saveFailureArtifacts, normalizeTitle, QUEUE_NAMES } from './config.js';
+export { detectAntiBot } from './anti-bot.js';
+export type { DetectAntiBotOptions } from './anti-bot.js';
 export { normalizeImageUrl } from './image.js';
 export type { AppConfig } from './config.js';
 export { createLogger, Logger } from './logger.js';

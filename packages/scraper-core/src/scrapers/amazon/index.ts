@@ -61,8 +61,6 @@ export const amazonScraper: PlaywrightScraperPlugin = {
   },
 
   async extract(params: ScrapeExtractParams, _ctx: ScrapeContext, page: Page): Promise<RawProductData> {
-    await page.goto(params.url, { waitUntil: 'domcontentloaded' });
-
     const title =
       (await page.locator('#productTitle').textContent())?.trim() ??
       (await page.locator('span#title').textContent())?.trim() ??

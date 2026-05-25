@@ -1,5 +1,11 @@
 import { chromium, type Browser, type BrowserContext, type Page } from 'playwright';
 import type { Logger } from '@price-radar/shared';
+import {
+  applyStealthScripts,
+  buildContextOptions,
+  buildLaunchOptions,
+  DEFAULT_CHROME_USER_AGENT,
+} from './stealth.js';
 
 export interface BrowserSessionOptions {
   headless?: boolean;
@@ -14,34 +20,28 @@ export interface BrowserSession {
   close: () => Promise<void>;
 }
 
-const DEFAULT_USER_AGENT =
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+export { DEFAULT_CHROME_USER_AGENT };
 
 export async function createBrowserSession(
   logger: Logger,
   options: BrowserSessionOptions = {},
 ): Promise<BrowserSession> {
-  const headless = options.headless ?? process.env.PLAYWRIGHT_HEADLESS !== 'false';
   const timeoutMs = options.timeoutMs ?? 30_000;
 
-  const browser = await chromium.launch({
-    headless,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-  });
+  const browser = await chromium.launch(buildLaunchOptions(options));
 
-  const context = await browser.newContext({
-    userAgent: options.userAgent ?? DEFAULT_USER_AGENT,
-    viewport: { width: 1366, height: 768 },
-    locale: 'it-IT',
-    timezoneId: 'Europe/Rome',
-  });
+  const context = await browser.newContext(buildContextOptions(options));
+  await applyStealthScripts(context);
 
   context.setDefaultTimeout(timeoutMs);
   context.setDefaultNavigationTimeout(timeoutMs);
 
   const page = await context.newPage();
 
-  logger.debug('Browser session created', { headless, timeoutMs });
+  logger.debug('Browser session created', {
+    headless: buildLaunchOptions(options).headless,
+    timeoutMs,
+  });
 
   const close = async (): Promise<void> => {
     try {

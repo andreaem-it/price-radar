@@ -10,6 +10,7 @@ import {
 } from '@price-radar/shared';
 import { getDatabase, runMigrations, seedRetailers } from '@price-radar/db';
 import { processScrapeJob } from './processor.js';
+import { closeBrowserPool } from '@price-radar/scraper-core';
 
 const migrationsFolder = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -55,6 +56,7 @@ async function main() {
     await worker.close();
     await scrapeQueue.close();
     await aiQueue.close();
+    await closeBrowserPool();
     await connection.quit();
     process.exit(0);
   };

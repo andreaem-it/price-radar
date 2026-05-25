@@ -11,6 +11,7 @@ export { ScraperRegistry } from './registry.js';
 export type { PlaywrightScraperPlugin } from './registry.js';
 export { createBrowserSession, withBrowserSession } from './browser-session.js';
 export type { BrowserSession, BrowserSessionOptions } from './browser-session.js';
+export { getBrowserPool, closeBrowserPool } from './browser-pool.js';
 export { runExtractJob } from './runner.js';
 export type { ScrapeRunParams, ScrapeRunResult } from './runner.js';
 export { amazonScraper } from './scrapers/amazon/index.js';
