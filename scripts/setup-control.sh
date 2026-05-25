@@ -55,6 +55,10 @@ systemctl restart nfs-kernel-server
 
 log "Repository..."
 if [[ ! -d "$APP_DIR/.git" ]]; then
+  if [[ -d "$APP_DIR" ]] && [[ -n "$(ls -A "$APP_DIR" 2>/dev/null)" ]]; then
+    log "Pulizia $APP_DIR incompleto..."
+    rm -rf "$APP_DIR"
+  fi
   sudo -u "$REAL_USER" git clone "$REPO_URL" "$APP_DIR"
 else
   sudo -u "$REAL_USER" git -C "$APP_DIR" pull --ff-only || true
