@@ -6,6 +6,7 @@
     { "path": "./packages/db" },
     { "path": "./packages/scraper-core" },
     { "path": "./packages/ai-core" },
+    { "path": "./packages/tj-api-client" },
     { "path": "./apps/api-service" },
     { "path": "./apps/scheduler-service" },
     { "path": "./apps/scraper-worker" },

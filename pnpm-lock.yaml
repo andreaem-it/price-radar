@@ -125,6 +125,9 @@ importers:
       '@price-radar/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@price-radar/tj-api-client':
+        specifier: workspace:*
+        version: link:../../packages/tj-api-client
       '@price-radar/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -153,6 +156,9 @@ importers:
       '@price-radar/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@price-radar/tj-api-client':
+        specifier: workspace:*
+        version: link:../../packages/tj-api-client
       '@price-radar/types':
         specifier: workspace:*
         version: link:../../packages/types
@@ -229,6 +235,16 @@ importers:
       ioredis:
         specifier: ^5.4.2
         version: 5.10.1
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+
+  packages/tj-api-client:
+    dependencies:
+      '@price-radar/types':
+        specifier: workspace:*
+        version: link:../types
     devDependencies:
       typescript:
         specifier: ^5.7.2

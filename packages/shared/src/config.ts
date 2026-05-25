@@ -19,6 +19,10 @@ export interface AppConfig {
   aiConcurrency: number;
   scrapeMaxAttempts: number;
   schedulerIntervalMs: number;
+  tjApiBaseUrl: string;
+  tjApiFeedWriteKey: string;
+  tjApiPerPage: number;
+  tjApiSource: string;
 }
 
 function envInt(key: string, fallback: number): number {
@@ -48,6 +52,10 @@ export function loadConfig(): AppConfig {
     aiConcurrency: envInt('AI_CONCURRENCY', 2),
     scrapeMaxAttempts: envInt('SCRAPE_MAX_ATTEMPTS', 3),
     schedulerIntervalMs: envInt('SCHEDULER_INTERVAL_MS', 60_000),
+    tjApiBaseUrl: (process.env.TJ_API_BASE_URL ?? '').replace(/\/+$/, ''),
+    tjApiFeedWriteKey: process.env.PRICE_RADAR_FEED_WRITE_KEY ?? '',
+    tjApiPerPage: envInt('TJ_API_PER_PAGE', 50),
+    tjApiSource: process.env.TJ_API_SOURCE ?? 'amazon_it',
   };
 }
 

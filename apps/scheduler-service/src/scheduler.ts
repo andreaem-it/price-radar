@@ -3,7 +3,9 @@ import type { Queue } from 'bullmq';
 import { getDatabase, products, retailers, scrapeJobs } from '@price-radar/db';
 import type { AppConfig } from '@price-radar/shared';
 import type { Logger } from '@price-radar/shared';
+import { isTjApiConfigured } from '@price-radar/tj-api-client';
 import type { ScrapeQueueJobData } from '@price-radar/types';
+import { syncProductsFromTjApi } from './tj-api-sync.js';
 
 export class ScrapeScheduler {
   private timer: NodeJS.Timeout | null = null;
@@ -17,7 +19,10 @@ export class ScrapeScheduler {
   start(): void {
     if (this.timer) return;
 
-    this.logger.info('Scheduler started', { intervalMs: this.config.schedulerIntervalMs });
+    this.logger.info('Scheduler started', {
+      intervalMs: this.config.schedulerIntervalMs,
+      tjApi: isTjApiConfigured(this.config) ? this.config.tjApiBaseUrl : false,
+    });
     void this.tick();
 
     this.timer = setInterval(() => {
@@ -74,6 +79,7 @@ export class ScrapeScheduler {
           retailerSlug: job.retailer.slug,
           url: job.product.url,
           externalId: job.product.externalId ?? undefined,
+          asin: job.product.externalId ?? undefined,
           priority: job.priority,
         },
         {
@@ -84,12 +90,16 @@ export class ScrapeScheduler {
     }
 
     await this.schedulePeriodicRescrape(db, now);
+    await syncProductsFromTjApi(this.config, this.logger, this.scrapeQueue);
   }
 
   private async schedulePeriodicRescrape(
     db: ReturnType<typeof getDatabase>['db'],
     now: string,
   ): Promise<void> {
+    if (isTjApiConfigured(this.config)) {
+      return;
+    }
     const enabledRetailers = await db.query.retailers.findMany({
       where: eq(retailers.enabled, true),
     });

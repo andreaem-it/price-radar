@@ -82,6 +82,12 @@ export interface ScrapeQueueJobData {
   retailerSlug: string;
   url: string;
   externalId?: string;
+  asin?: string;
+  source?: string;
+  previousPrice?: number | null;
+  brand?: string | null;
+  category?: string | null;
+  imageUrl?: string | null;
   priority?: number;
 }
 

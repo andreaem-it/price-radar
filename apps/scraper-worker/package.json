@@ -14,6 +14,7 @@
     "@price-radar/db": "workspace:*",
     "@price-radar/scraper-core": "workspace:*",
     "@price-radar/shared": "workspace:*",
+    "@price-radar/tj-api-client": "workspace:*",
     "@price-radar/types": "workspace:*",
     "bullmq": "^5.34.3",
     "drizzle-orm": "^0.38.1"

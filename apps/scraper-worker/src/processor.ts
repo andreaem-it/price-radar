@@ -1,5 +1,6 @@
 import { desc, eq } from 'drizzle-orm';
 import type { Job } from 'bullmq';
+import type { Queue } from 'bullmq';
 import { computeDeviationPercent } from '@price-radar/ai-core';
 import {
   getDatabase,
@@ -12,8 +13,13 @@ import { createDefaultRegistry, runExtractJob } from '@price-radar/scraper-core'
 import type { AppConfig } from '@price-radar/shared';
 import type { Logger } from '@price-radar/shared';
 import { QUEUE_NAMES } from '@price-radar/shared';
+import {
+  TjApiError,
+  createTjApiClientFromAppConfig,
+  isTjApiConfigured,
+  normalizeAsin,
+} from '@price-radar/tj-api-client';
 import type { AiQueueJobData, ScrapeQueueJobData } from '@price-radar/types';
-import type { Queue } from 'bullmq';
 
 const registry = createDefaultRegistry();
 
@@ -26,6 +32,7 @@ export async function processScrapeJob(
   const { db } = getDatabase(config.databasePath);
   const now = new Date().toISOString();
   const attempt = job.attemptsMade + 1;
+  const useTjApi = isTjApiConfigured(config);
 
   const childLogger = logger.child({
     jobId: job.data.jobId,
@@ -52,7 +59,7 @@ export async function processScrapeJob(
     attempt,
     extractParams: {
       url: job.data.url,
-      externalId: job.data.externalId,
+      externalId: job.data.externalId ?? job.data.asin,
     },
   });
 
@@ -79,31 +86,94 @@ export async function processScrapeJob(
   }
 
   const product = result.product;
+  const asin = normalizeAsin(job.data.asin ?? product.externalId);
 
-  const previousPrice = await db.query.productPrices.findFirst({
-    where: eq(productPrices.productId, job.data.productId),
-    orderBy: [desc(productPrices.scrapedAt)],
-  });
+  if (useTjApi) {
+    if (!asin) {
+      throw new Error(`Invalid ASIN for tj-api push: ${product.externalId}`);
+    }
 
-  await db.insert(productPrices).values({
-    productId: job.data.productId,
-    price: product.price,
-    currency: product.currency,
-    availability: product.availability,
-    rawData: {
-      title: product.title,
-      externalId: product.externalId,
-      url: product.url,
-    },
-    scrapedAt: now,
-  });
+    const client = createTjApiClientFromAppConfig(config);
+
+    try {
+      const pushResult = await client.pushPrices([
+        {
+          asin,
+          url: product.url,
+          price: product.price,
+          title: product.title,
+          currency: product.currency,
+          availability: product.availability,
+          source: job.data.source ?? config.tjApiSource,
+          image_url: product.imageUrl ?? job.data.imageUrl ?? null,
+          brand: job.data.brand ?? null,
+          category: job.data.category ?? null,
+          detected_at: now,
+        },
+      ]);
+
+      childLogger.info('Pushed price to tj-api', {
+        asin,
+        processed: pushResult.processed,
+        updated: pushResult.updated,
+        created: pushResult.created,
+      });
+    } catch (error) {
+      const message =
+        error instanceof TjApiError
+          ? `tj-api push failed (${error.status}): ${error.message}`
+          : error instanceof Error
+            ? error.message
+            : String(error);
+
+      await db
+        .update(scrapeJobs)
+        .set({
+          status: attempt >= config.scrapeMaxAttempts ? 'failed' : 'retrying',
+          error: message,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(scrapeJobs.id, job.data.jobId));
+
+      throw new Error(message);
+    }
+  } else {
+    const previousPrice = await db.query.productPrices.findFirst({
+      where: eq(productPrices.productId, job.data.productId),
+      orderBy: [desc(productPrices.scrapedAt)],
+    });
+
+    await db.insert(productPrices).values({
+      productId: job.data.productId,
+      price: product.price,
+      currency: product.currency,
+      availability: product.availability,
+      rawData: {
+        title: product.title,
+        externalId: product.externalId,
+        url: product.url,
+      },
+      scrapedAt: now,
+    });
+
+    if (previousPrice) {
+      await enqueueAnomalyIfNeeded(
+        job,
+        aiQueue,
+        db,
+        previousPrice.price,
+        product.price,
+        product.currency,
+      );
+    }
+  }
 
   await db
     .update(products)
     .set({
       title: product.title,
       normalizedTitle: product.normalizedTitle,
-      externalId: product.externalId,
+      externalId: asin ?? product.externalId,
       updatedAt: now,
     })
     .where(eq(products.id, job.data.productId));
@@ -121,38 +191,57 @@ export async function processScrapeJob(
   childLogger.info('Scrape job completed', {
     price: product.price,
     currency: product.currency,
+    tjApi: useTjApi,
   });
 
-  if (previousPrice) {
-    const deviation = computeDeviationPercent(previousPrice.price, product.price);
-
-    if (deviation >= 40) {
-      await aiQueue.add(
-        'detect-anomaly',
-        {
-          jobId: crypto.randomUUID(),
-          type: 'detect_anomaly',
-          payload: {
-            productId: job.data.productId,
-            previousPrice: previousPrice.price,
-            currentPrice: product.price,
-            currency: product.currency,
-            history: [previousPrice.price, product.price],
-          },
-        },
-        { jobId: `anomaly-${job.data.productId}-${Date.now()}` },
-      );
-
-      await db.insert(priceAnomalies).values({
-        productId: job.data.productId,
-        previousPrice: previousPrice.price,
-        currentPrice: product.price,
-        deviationPercent: deviation,
-        currency: product.currency,
-        resolved: false,
-      });
-    }
+  if (useTjApi && job.data.previousPrice != null && job.data.previousPrice > 0) {
+    await enqueueAnomalyIfNeeded(
+      job,
+      aiQueue,
+      db,
+      job.data.previousPrice,
+      product.price,
+      product.currency,
+    );
   }
+}
+
+async function enqueueAnomalyIfNeeded(
+  job: Job<ScrapeQueueJobData>,
+  aiQueue: Queue<AiQueueJobData>,
+  db: ReturnType<typeof getDatabase>['db'],
+  previousPrice: number,
+  currentPrice: number,
+  currency: string,
+): Promise<void> {
+  const deviation = computeDeviationPercent(previousPrice, currentPrice);
+
+  if (deviation < 40) return;
+
+  await aiQueue.add(
+    'detect-anomaly',
+    {
+      jobId: crypto.randomUUID(),
+      type: 'detect_anomaly',
+      payload: {
+        productId: job.data.productId,
+        previousPrice,
+        currentPrice,
+        currency,
+        history: [previousPrice, currentPrice],
+      },
+    },
+    { jobId: `anomaly-${job.data.productId}-${Date.now()}` },
+  );
+
+  await db.insert(priceAnomalies).values({
+    productId: job.data.productId,
+    previousPrice,
+    currentPrice,
+    deviationPercent: deviation,
+    currency,
+    resolved: false,
+  });
 }
 
 export { QUEUE_NAMES, registry };

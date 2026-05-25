@@ -11,6 +11,7 @@
     { "path": "../../packages/shared" },
     { "path": "../../packages/db" },
     { "path": "../../packages/scraper-core" },
-    { "path": "../../packages/ai-core" }
+    { "path": "../../packages/ai-core" },
+    { "path": "../../packages/tj-api-client" }
   ]
 }

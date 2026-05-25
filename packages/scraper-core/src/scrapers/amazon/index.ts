@@ -76,6 +76,11 @@ export const amazonScraper: PlaywrightScraperPlugin = {
       (await page.locator('#availability').textContent()) ??
       (await page.locator('#outOfStock').textContent());
 
+    const imageUrl =
+      (await page.locator('#landingImage').getAttribute('src')) ??
+      (await page.locator('#imgTagWrapperId img').first().getAttribute('src')) ??
+      undefined;
+
     const externalId =
       params.externalId ??
       extractExternalIdFromUrl(params.url, AMAZON_ID_PATTERN) ??
@@ -87,6 +92,7 @@ export const amazonScraper: PlaywrightScraperPlugin = {
       currency: 'EUR',
       url: params.url,
       externalId,
+      imageUrl,
       availability: availability?.trim(),
     };
   },
@@ -107,6 +113,7 @@ export const amazonScraper: PlaywrightScraperPlugin = {
       url: raw.url,
       externalId: raw.externalId,
       availability: mapAvailability(raw.availability),
+      imageUrl: raw.imageUrl,
     };
   },
 

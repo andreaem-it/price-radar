@@ -12,6 +12,7 @@
   "dependencies": {
     "@price-radar/db": "workspace:*",
     "@price-radar/shared": "workspace:*",
+    "@price-radar/tj-api-client": "workspace:*",
     "@price-radar/types": "workspace:*",
     "drizzle-orm": "^0.38.1"
   },
