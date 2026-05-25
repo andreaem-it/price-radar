@@ -1,0 +1,15 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/types" },
+    { "path": "./packages/shared" },
+    { "path": "./packages/db" },
+    { "path": "./packages/scraper-core" },
+    { "path": "./packages/ai-core" },
+    { "path": "./apps/api-service" },
+    { "path": "./apps/scheduler-service" },
+    { "path": "./apps/scraper-worker" },
+    { "path": "./apps/mcp-service" },
+    { "path": "./apps/ai-worker" }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "name": "@price-radar/scheduler-service",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@price-radar/db": "workspace:*",
+    "@price-radar/shared": "workspace:*",
+    "@price-radar/types": "workspace:*",
+    "drizzle-orm": "^0.38.1"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

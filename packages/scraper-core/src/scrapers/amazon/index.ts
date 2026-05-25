@@ -1,0 +1,116 @@
+import type { Page } from 'playwright';
+import { normalizeTitle } from '@price-radar/shared';
+import type {
+  NormalizedProduct,
+  RawProductData,
+  ScrapeContext,
+  ScrapeExtractParams,
+  ScrapeSearchParams,
+  ScrapeSearchResult,
+} from '@price-radar/types';
+import type { PlaywrightScraperPlugin } from '../../registry.js';
+import {
+  extractExternalIdFromUrl,
+  mapAvailability,
+  parsePrice,
+} from '../../utils.js';
+
+const AMAZON_ID_PATTERN = /\/dp\/([A-Z0-9]{10})/i;
+
+export const amazonScraper: PlaywrightScraperPlugin = {
+  slug: 'amazon',
+  name: 'Amazon',
+  baseUrl: 'https://www.amazon.it',
+
+  async search(
+    params: ScrapeSearchParams,
+    _ctx: ScrapeContext,
+    page: Page,
+  ): Promise<ScrapeSearchResult[]> {
+    const searchUrl = `https://www.amazon.it/s?k=${encodeURIComponent(params.query)}`;
+    await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+
+    const items = page.locator('[data-component-type="s-search-result"]');
+    const count = Math.min(await items.count(), params.maxResults ?? 10);
+    const results: ScrapeSearchResult[] = [];
+
+    for (let i = 0; i < count; i++) {
+      const item = items.nth(i);
+      const title = (await item.locator('h2 a span').first().textContent())?.trim() ?? '';
+      const href = (await item.locator('h2 a').first().getAttribute('href')) ?? '';
+      const priceText =
+        (await item.locator('.a-price .a-offscreen').first().textContent()) ??
+        (await item.locator('.a-price-whole').first().textContent());
+
+      if (!title || !href) continue;
+
+      const url = href.startsWith('http') ? href : `https://www.amazon.it${href}`;
+      const externalId = extractExternalIdFromUrl(url, AMAZON_ID_PATTERN) ?? title;
+
+      results.push({
+        externalId,
+        title,
+        url,
+        price: parsePrice(priceText),
+        currency: 'EUR',
+      });
+    }
+
+    return results;
+  },
+
+  async extract(params: ScrapeExtractParams, _ctx: ScrapeContext, page: Page): Promise<RawProductData> {
+    await page.goto(params.url, { waitUntil: 'domcontentloaded' });
+
+    const title =
+      (await page.locator('#productTitle').textContent())?.trim() ??
+      (await page.locator('span#title').textContent())?.trim() ??
+      '';
+
+    const priceText =
+      (await page.locator('#corePriceDisplay_desktop_feature_div .a-offscreen').first().textContent()) ??
+      (await page.locator('#priceblock_ourprice').textContent()) ??
+      (await page.locator('.a-price .a-offscreen').first().textContent());
+
+    const availability =
+      (await page.locator('#availability').textContent()) ??
+      (await page.locator('#outOfStock').textContent());
+
+    const externalId =
+      params.externalId ??
+      extractExternalIdFromUrl(params.url, AMAZON_ID_PATTERN) ??
+      params.url;
+
+    return {
+      title,
+      price: parsePrice(priceText),
+      currency: 'EUR',
+      url: params.url,
+      externalId,
+      availability: availability?.trim(),
+    };
+  },
+
+  normalize(raw: RawProductData): NormalizedProduct {
+    if (!raw.title) {
+      throw new Error('Amazon product title missing');
+    }
+    if (raw.price === null) {
+      throw new Error('Amazon product price missing');
+    }
+
+    return {
+      title: raw.title,
+      normalizedTitle: normalizeTitle(raw.title),
+      price: raw.price,
+      currency: raw.currency || 'EUR',
+      url: raw.url,
+      externalId: raw.externalId,
+      availability: mapAvailability(raw.availability),
+    };
+  },
+
+  validate(product: NormalizedProduct): boolean {
+    return product.title.length > 0 && product.price > 0 && product.externalId.length > 0;
+  },
+};

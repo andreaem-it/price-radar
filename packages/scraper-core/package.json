@@ -1,0 +1,27 @@
+{
+  "name": "@price-radar/scraper-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@price-radar/shared": "workspace:*",
+    "@price-radar/types": "workspace:*",
+    "playwright": "^1.49.1"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2"
+  }
+}
