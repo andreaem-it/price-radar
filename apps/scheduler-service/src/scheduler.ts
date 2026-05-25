@@ -43,7 +43,7 @@ export class ScrapeScheduler {
 
     const dueJobs = await db.query.scrapeJobs.findMany({
       where: and(
-        inArray(scrapeJobs.status, ['pending', 'failed']),
+        inArray(scrapeJobs.status, ['pending', 'failed', 'retrying']),
         lte(scrapeJobs.scheduledAt, now),
       ),
       limit: 100,
