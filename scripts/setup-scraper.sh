@@ -73,7 +73,7 @@ sudo -u "$REAL_USER" sed -i \
   "$APP_DIR/.env"
 
 log "pnpm install + build..."
-sudo -u "$REAL_USER" bash -lc "cd '$APP_DIR' && pnpm install && pnpm build"
+sudo -u "$REAL_USER" bash -lc "cd '$APP_DIR' && find . -name '*.tsbuildinfo' -delete && pnpm install && pnpm build"
 
 log "Playwright Chromium..."
 sudo -u "$REAL_USER" bash -lc "cd '$APP_DIR' && pnpm exec playwright install chromium"

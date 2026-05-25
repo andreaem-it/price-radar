@@ -36,6 +36,7 @@ npm install -g pnpm@9.15.4
 log "Redis — accesso da scraper ($SCRAPER_IP)..."
 sed -i 's/^supervised no/supervised systemd/' /etc/redis/redis.conf 2>/dev/null || true
 grep -q '^bind 0.0.0.0' /etc/redis/redis.conf || echo 'bind 0.0.0.0' >> /etc/redis/redis.conf
+grep -q '^protected-mode no' /etc/redis/redis.conf || echo 'protected-mode no' >> /etc/redis/redis.conf
 systemctl enable redis-server
 systemctl restart redis-server
 
@@ -74,7 +75,7 @@ sudo -u "$REAL_USER" sed -i \
   "$APP_DIR/.env"
 
 log "pnpm install + build..."
-sudo -u "$REAL_USER" bash -lc "cd '$APP_DIR' && pnpm install && pnpm build"
+sudo -u "$REAL_USER" bash -lc "cd '$APP_DIR' && find . -name '*.tsbuildinfo' -delete && pnpm install && pnpm build"
 
 log "Ollama (opzionale)..."
 if ! command -v ollama >/dev/null 2>&1; then
