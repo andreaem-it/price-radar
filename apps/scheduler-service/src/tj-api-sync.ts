@@ -7,6 +7,7 @@ import {
   isTjApiConfigured,
   normalizeAsin,
 } from '@price-radar/tj-api-client';
+import type { TjApiProduct } from '@price-radar/tj-api-client';
 import type { ScrapeQueueJobData } from '@price-radar/types';
 
 export async function syncProductsFromTjApi(
@@ -47,87 +48,104 @@ export async function syncProductsFromTjApi(
   logger.info('Syncing scrape jobs from tj-api', { count: remoteProducts.length });
 
   for (const remote of remoteProducts) {
-    const asin = normalizeAsin(remote.asin);
-    if (!asin || !remote.url) continue;
-
-    let localProduct = await db.query.products.findFirst({
-      where: and(eq(products.externalId, asin), eq(products.retailerId, amazonRetailer.id)),
-    });
-
-    const title = remote.title?.trim() || `Amazon ${asin}`;
-
-    if (!localProduct) {
-      const [inserted] = await db
-        .insert(products)
-        .values({
-          retailerId: amazonRetailer.id,
-          title,
-          normalizedTitle: normalizeTitle(title),
-          url: remote.url,
-          externalId: asin,
-          updatedAt: now,
-        })
-        .returning();
-
-      localProduct = inserted;
-    } else {
-      await db
-        .update(products)
-        .set({
-          title,
-          normalizedTitle: normalizeTitle(title),
-          url: remote.url,
-          updatedAt: now,
-        })
-        .where(eq(products.id, localProduct.id));
+    try {
+      await syncOneProductFromTjApi(db, amazonRetailer, remote, now, scrapeQueue);
+    } catch (error) {
+      logger.error('Failed to sync product from tj-api', error, {
+        asin: remote.asin,
+        tjProductId: remote.id,
+      });
     }
+  }
+}
 
-    if (!localProduct) continue;
+async function syncOneProductFromTjApi(
+  db: ReturnType<typeof getDatabase>['db'],
+  amazonRetailer: { id: string; slug: string },
+  remote: TjApiProduct,
+  now: string,
+  scrapeQueue: Queue<ScrapeQueueJobData>,
+): Promise<void> {
+  const asin = normalizeAsin(remote.asin);
+  if (!asin || !remote.url) return;
 
-    const activeJob = await db.query.scrapeJobs.findFirst({
-      where: and(
-        eq(scrapeJobs.productId, localProduct.id),
-        inArray(scrapeJobs.status, ['pending', 'queued', 'running', 'retrying']),
-      ),
-    });
+  let localProduct = await db.query.products.findFirst({
+    where: and(eq(products.externalId, asin), eq(products.retailerId, amazonRetailer.id)),
+  });
 
-    if (activeJob) continue;
+  const title = remote.title?.trim() || `Amazon ${asin}`;
 
-    const [newJob] = await db
-      .insert(scrapeJobs)
+  if (!localProduct) {
+    const [inserted] = await db
+      .insert(products)
       .values({
-        productId: localProduct.id,
         retailerId: amazonRetailer.id,
-        status: 'queued',
-        scheduledAt: now,
+        title,
+        normalizedTitle: normalizeTitle(title),
+        url: remote.url,
+        externalId: asin,
         updatedAt: now,
-        metadata: {
-          tjProductId: remote.id,
-          asin,
-          source: remote.source,
-        },
       })
       .returning();
 
-    if (!newJob) continue;
-
-    await scrapeQueue.add(
-      'scrape-product',
-      {
-        jobId: newJob.id,
-        productId: localProduct.id,
-        retailerId: amazonRetailer.id,
-        retailerSlug: amazonRetailer.slug,
+    localProduct = inserted;
+  } else {
+    await db
+      .update(products)
+      .set({
+        title,
+        normalizedTitle: normalizeTitle(title),
         url: remote.url,
-        externalId: asin,
+        updatedAt: now,
+      })
+      .where(eq(products.id, localProduct.id));
+  }
+
+  if (!localProduct) return;
+
+  const activeJob = await db.query.scrapeJobs.findFirst({
+    where: and(
+      eq(scrapeJobs.productId, localProduct.id),
+      inArray(scrapeJobs.status, ['pending', 'queued', 'running', 'retrying']),
+    ),
+  });
+
+  if (activeJob) return;
+
+  const [newJob] = await db
+    .insert(scrapeJobs)
+    .values({
+      productId: localProduct.id,
+      retailerId: amazonRetailer.id,
+      status: 'queued',
+      scheduledAt: now,
+      updatedAt: now,
+      metadata: {
+        tjProductId: remote.id,
         asin,
         source: remote.source,
-        previousPrice: remote.current_price,
-        brand: remote.brand ?? null,
-        category: remote.category ?? null,
-        imageUrl: remote.image_url,
       },
-      { jobId: newJob.id },
-    );
-  }
+    })
+    .returning();
+
+  if (!newJob) return;
+
+  await scrapeQueue.add(
+    'scrape-product',
+    {
+      jobId: newJob.id,
+      productId: localProduct.id,
+      retailerId: amazonRetailer.id,
+      retailerSlug: amazonRetailer.slug,
+      url: remote.url,
+      externalId: asin,
+      asin,
+      source: remote.source,
+      previousPrice: remote.current_price,
+      brand: remote.brand ?? null,
+      category: remote.category ?? null,
+      imageUrl: remote.image_url,
+    },
+    { jobId: newJob.id },
+  );
 }
