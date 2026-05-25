@@ -55,38 +55,37 @@ export class ScrapeScheduler {
 
     if (dueJobs.length === 0) {
       this.logger.debug('No due scrape jobs');
-      return;
-    }
+    } else {
+      this.logger.info('Enqueueing due scrape jobs', { count: dueJobs.length });
 
-    this.logger.info('Enqueueing due scrape jobs', { count: dueJobs.length });
+      for (const job of dueJobs) {
+        if (!job.retailer.enabled) {
+          continue;
+        }
 
-    for (const job of dueJobs) {
-      if (!job.retailer.enabled) {
-        continue;
+        await db
+          .update(scrapeJobs)
+          .set({ status: 'queued', updatedAt: now })
+          .where(eq(scrapeJobs.id, job.id));
+
+        await this.scrapeQueue.add(
+          'scrape-product',
+          {
+            jobId: job.id,
+            productId: job.productId,
+            retailerId: job.retailerId,
+            retailerSlug: job.retailer.slug,
+            url: job.product.url,
+            externalId: job.product.externalId ?? undefined,
+            asin: job.product.externalId ?? undefined,
+            priority: job.priority,
+          },
+          {
+            jobId: job.id,
+            priority: job.priority,
+          },
+        );
       }
-
-      await db
-        .update(scrapeJobs)
-        .set({ status: 'queued', updatedAt: now })
-        .where(eq(scrapeJobs.id, job.id));
-
-      await this.scrapeQueue.add(
-        'scrape-product',
-        {
-          jobId: job.id,
-          productId: job.productId,
-          retailerId: job.retailerId,
-          retailerSlug: job.retailer.slug,
-          url: job.product.url,
-          externalId: job.product.externalId ?? undefined,
-          asin: job.product.externalId ?? undefined,
-          priority: job.priority,
-        },
-        {
-          jobId: job.id,
-          priority: job.priority,
-        },
-      );
     }
 
     await this.schedulePeriodicRescrape(db, now);
