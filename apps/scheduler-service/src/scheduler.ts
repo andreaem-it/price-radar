@@ -3,6 +3,7 @@ import type { Queue } from 'bullmq';
 import { getDatabase, products, retailers, scrapeJobs } from '@price-radar/db';
 import type { AppConfig } from '@price-radar/shared';
 import type { Logger } from '@price-radar/shared';
+import { enqueueScrapeJob } from '@price-radar/shared';
 import { isTjApiConfigured } from '@price-radar/tj-api-client';
 import type { ScrapeQueueJobData } from '@price-radar/types';
 import { syncProductsFromTjApi } from './tj-api-sync.js';
@@ -68,8 +69,8 @@ export class ScrapeScheduler {
           .set({ status: 'queued', updatedAt: now })
           .where(eq(scrapeJobs.id, job.id));
 
-        await this.scrapeQueue.add(
-          'scrape-product',
+        await enqueueScrapeJob(
+          this.scrapeQueue,
           {
             jobId: job.id,
             productId: job.productId,
@@ -139,8 +140,8 @@ export class ScrapeScheduler {
 
       if (!newJob) continue;
 
-      await this.scrapeQueue.add(
-        'scrape-product',
+      await enqueueScrapeJob(
+        this.scrapeQueue,
         {
           jobId: newJob.id,
           productId: product.id,

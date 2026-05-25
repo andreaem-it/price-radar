@@ -10,5 +10,5 @@ export {
   checkRedisConnection,
   closeRedisConnection,
 } from './redis.js';
-export { createQueues, closeQueues } from './queues.js';
+export { createQueues, closeQueues, enqueueScrapeJob } from './queues.js';
 export type { QueueBundle } from './queues.js';

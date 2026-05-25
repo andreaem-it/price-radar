@@ -1,4 +1,4 @@
-import { Queue } from 'bullmq';
+import { Queue, type JobsOptions } from 'bullmq';
 import type { AiQueueJobData, ScrapeQueueJobData } from '@price-radar/types';
 import type { AppConfig } from './config.js';
 import { QUEUE_NAMES } from './config.js';
@@ -8,6 +8,26 @@ export interface QueueBundle {
   scrapeQueue: Queue<ScrapeQueueJobData>;
   aiQueue: Queue<AiQueueJobData>;
   connection: ReturnType<typeof createRedisConnection>;
+}
+
+export async function enqueueScrapeJob(
+  queue: Queue<ScrapeQueueJobData>,
+  data: ScrapeQueueJobData,
+  options: JobsOptions = {},
+): Promise<void> {
+  const jobId = options.jobId ?? data.jobId;
+
+  if (jobId) {
+    const existing = await queue.getJob(String(jobId));
+    if (existing) {
+      await existing.remove().catch(() => undefined);
+    }
+  }
+
+  await queue.add('scrape-product', data, {
+    ...options,
+    jobId,
+  });
 }
 
 export function createQueues(config: AppConfig): QueueBundle {

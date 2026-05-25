@@ -1,6 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { desc, eq } from 'drizzle-orm';
-import { normalizeTitle } from '@price-radar/shared';
+import { enqueueScrapeJob, normalizeTitle } from '@price-radar/shared';
 import { productPrices, products, retailers, scrapeJobs } from '@price-radar/db';
 import type { CreateProductRequest } from '@price-radar/types';
 
@@ -53,8 +53,8 @@ export const productRoutes: FastifyPluginAsync = async (app) => {
       .returning();
 
     if (job) {
-      await app.queues.scrapeQueue.add(
-        'scrape-product',
+      await enqueueScrapeJob(
+        app.queues.scrapeQueue,
         {
           jobId: job.id,
           productId: product.id,

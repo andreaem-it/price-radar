@@ -1,7 +1,7 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import type { Queue } from 'bullmq';
 import { getDatabase, products, retailers, scrapeJobs } from '@price-radar/db';
-import { normalizeTitle, type AppConfig, type Logger } from '@price-radar/shared';
+import { normalizeTitle, type AppConfig, type Logger, enqueueScrapeJob } from '@price-radar/shared';
 import {
   createTjApiClientFromAppConfig,
   isTjApiConfigured,
@@ -130,8 +130,8 @@ async function syncOneProductFromTjApi(
 
   if (!newJob) return;
 
-  await scrapeQueue.add(
-    'scrape-product',
+  await enqueueScrapeJob(
+    scrapeQueue,
     {
       jobId: newJob.id,
       productId: localProduct.id,
