@@ -1,14 +1,5 @@
-import { desc, eq } from 'drizzle-orm';
 import type { Job } from 'bullmq';
 import type { Queue } from 'bullmq';
-import { computeDeviationPercent } from '@price-radar/ai-core';
-import {
-  getDatabase,
-  priceAnomalies,
-  productPrices,
-  products,
-  scrapeJobs,
-} from '@price-radar/db';
 import { createDefaultRegistry, runExtractJob } from '@price-radar/scraper-core';
 import type { AppConfig } from '@price-radar/shared';
 import type { Logger } from '@price-radar/shared';
@@ -21,6 +12,7 @@ import {
   normalizeAsin,
 } from '@price-radar/tj-api-client';
 import type { AiQueueJobData, ScrapeQueueJobData } from '@price-radar/types';
+import { createJobStore } from './job-store.js';
 
 const registry = createDefaultRegistry();
 
@@ -30,7 +22,7 @@ export async function processScrapeJob(
   logger: Logger,
   aiQueue: Queue<AiQueueJobData>,
 ): Promise<void> {
-  const { db } = getDatabase(config.databasePath);
+  const store = createJobStore(config);
   const now = new Date().toISOString();
   const attempt = job.attemptsMade + 1;
   const useTjApi = isTjApiConfigured(config);
@@ -41,16 +33,7 @@ export async function processScrapeJob(
     productId: job.data.productId,
   });
 
-  await db
-    .update(scrapeJobs)
-    .set({
-      status: 'running',
-      attempts: attempt,
-      startedAt: now,
-      updatedAt: now,
-      error: null,
-    })
-    .where(eq(scrapeJobs.id, job.data.jobId));
+  await store.markRunning(job.data.jobId, attempt, now);
 
   childLogger.info('Processing scrape job', { attempt, url: job.data.url });
 
@@ -65,17 +48,10 @@ export async function processScrapeJob(
   });
 
   if (!result.success || !result.product) {
-    const status = result.isAntiBot ? 'retrying' : attempt >= config.scrapeMaxAttempts ? 'failed' : 'retrying';
+    const status =
+      result.isAntiBot ? 'retrying' : attempt >= config.scrapeMaxAttempts ? 'failed' : 'retrying';
 
-    await db
-      .update(scrapeJobs)
-      .set({
-        status,
-        error: result.error ?? 'Unknown scrape error',
-        updatedAt: new Date().toISOString(),
-        completedAt: status === 'failed' ? new Date().toISOString() : null,
-      })
-      .where(eq(scrapeJobs.id, job.data.jobId));
+    await store.markFailure(job.data.jobId, status, result.error ?? 'Unknown scrape error', now);
 
     if (result.isAntiBot) {
       childLogger.antiBotDetected(job.data.jobId, job.data.retailerSlug, job.data.url);
@@ -136,67 +112,45 @@ export async function processScrapeJob(
             ? error.message
             : String(error);
 
-      await db
-        .update(scrapeJobs)
-        .set({
-          status: attempt >= config.scrapeMaxAttempts ? 'failed' : 'retrying',
-          error: message,
-          updatedAt: new Date().toISOString(),
-        })
-        .where(eq(scrapeJobs.id, job.data.jobId));
+      await store.markFailure(
+        job.data.jobId,
+        attempt >= config.scrapeMaxAttempts ? 'failed' : 'retrying',
+        message,
+        now,
+      );
 
       throw new Error(message);
     }
   } else {
-    const previousPrice = await db.query.productPrices.findFirst({
-      where: eq(productPrices.productId, job.data.productId),
-      orderBy: [desc(productPrices.scrapedAt)],
-    });
-
-    await db.insert(productPrices).values({
-      productId: job.data.productId,
+    const { previousPrice } = await store.savePriceHistory(job.data.productId, {
       price: product.price,
       currency: product.currency,
       availability: product.availability,
-      rawData: {
-        title: product.title,
-        externalId: product.externalId,
-        url: product.url,
-      },
-      scrapedAt: now,
+      title: product.title,
+      externalId: product.externalId,
+      url: product.url,
+      now,
     });
 
-    if (previousPrice) {
-      await enqueueAnomalyIfNeeded(
+    if (previousPrice != null) {
+      await store.enqueueAnomalyIfNeeded(
         job,
         aiQueue,
-        db,
-        previousPrice.price,
+        previousPrice,
         product.price,
         product.currency,
       );
     }
   }
 
-  await db
-    .update(products)
-    .set({
-      title: product.title,
-      normalizedTitle: product.normalizedTitle,
-      externalId: asin ?? product.externalId,
-      updatedAt: now,
-    })
-    .where(eq(products.id, job.data.productId));
+  await store.updateProductAfterScrape(job.data.productId, {
+    title: product.title,
+    normalizedTitle: product.normalizedTitle,
+    externalId: asin ?? product.externalId,
+    now,
+  });
 
-  await db
-    .update(scrapeJobs)
-    .set({
-      status: 'completed',
-      completedAt: now,
-      updatedAt: now,
-      error: null,
-    })
-    .where(eq(scrapeJobs.id, job.data.jobId));
+  await store.markCompleted(job.data.jobId, now);
 
   childLogger.info('Scrape job completed', {
     price: product.price,
@@ -205,53 +159,14 @@ export async function processScrapeJob(
   });
 
   if (useTjApi && job.data.previousPrice != null && job.data.previousPrice > 0) {
-    await enqueueAnomalyIfNeeded(
+    await store.enqueueAnomalyIfNeeded(
       job,
       aiQueue,
-      db,
       job.data.previousPrice,
       product.price,
       product.currency,
     );
   }
-}
-
-async function enqueueAnomalyIfNeeded(
-  job: Job<ScrapeQueueJobData>,
-  aiQueue: Queue<AiQueueJobData>,
-  db: ReturnType<typeof getDatabase>['db'],
-  previousPrice: number,
-  currentPrice: number,
-  currency: string,
-): Promise<void> {
-  const deviation = computeDeviationPercent(previousPrice, currentPrice);
-
-  if (deviation < 40) return;
-
-  await aiQueue.add(
-    'detect-anomaly',
-    {
-      jobId: crypto.randomUUID(),
-      type: 'detect_anomaly',
-      payload: {
-        productId: job.data.productId,
-        previousPrice,
-        currentPrice,
-        currency,
-        history: [previousPrice, currentPrice],
-      },
-    },
-    { jobId: `anomaly-${job.data.productId}-${Date.now()}` },
-  );
-
-  await db.insert(priceAnomalies).values({
-    productId: job.data.productId,
-    previousPrice,
-    currentPrice,
-    deviationPercent: deviation,
-    currency,
-    resolved: false,
-  });
 }
 
 export { QUEUE_NAMES, registry };

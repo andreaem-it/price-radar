@@ -14,6 +14,7 @@ import { healthRoutes } from './routes/health.js';
 import { productRoutes } from './routes/products.js';
 import { jobRoutes } from './routes/jobs.js';
 import { adminRoutes } from './routes/admin.js';
+import { internalRoutes } from './routes/internal.js';
 
 const migrationsFolder = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -55,6 +56,7 @@ export async function buildApp() {
   await app.register(productRoutes, { prefix: '/api/products' });
   await app.register(jobRoutes, { prefix: '/api/jobs' });
   await app.register(adminRoutes, { prefix: '/admin' });
+  await app.register(internalRoutes, { prefix: '/api/internal' });
 
   app.get('/api/retailers', async (_request, reply) => {
     const list = await db.query.retailers.findMany({

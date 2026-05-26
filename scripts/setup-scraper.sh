@@ -69,8 +69,15 @@ sudo -u "$REAL_USER" sed -i \
   "s|DATA_DIR=.*|DATA_DIR=$APP_DIR/data|" \
   "$APP_DIR/.env"
 sudo -u "$REAL_USER" sed -i \
-  "s|DATABASE_PATH=.*|DATABASE_PATH=$APP_DIR/data/price-radar.db|" \
+  "s|CONTROL_API_URL=.*|CONTROL_API_URL=http://$CONTROL_IP:3000|" \
   "$APP_DIR/.env"
+INTERNAL_KEY="${INTERNAL_API_KEY:-change-me-internal-key}"
+if grep -q '^INTERNAL_API_KEY=' "$APP_DIR/.env"; then
+  sudo -u "$REAL_USER" sed -i "s|INTERNAL_API_KEY=.*|INTERNAL_API_KEY=$INTERNAL_KEY|" "$APP_DIR/.env"
+else
+  echo "INTERNAL_API_KEY=$INTERNAL_KEY" >> "$APP_DIR/.env"
+fi
+sudo -u "$REAL_USER" sed -i '/^DATABASE_PATH=/d' "$APP_DIR/.env"
 
 log "pnpm install + build..."
 sudo -u "$REAL_USER" bash -lc "cd '$APP_DIR' && find . -name '*.tsbuildinfo' -delete && pnpm install && pnpm build"

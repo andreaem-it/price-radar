@@ -24,6 +24,8 @@ export interface AppConfig {
   tjApiPerPage: number;
   tjApiSource: string;
   adminToken: string;
+  controlApiUrl: string;
+  internalApiKey: string;
 }
 
 function envInt(key: string, fallback: number): number {
@@ -58,6 +60,8 @@ export function loadConfig(): AppConfig {
     tjApiPerPage: envInt('TJ_API_PER_PAGE', 50),
     tjApiSource: process.env.TJ_API_SOURCE ?? 'amazon_it',
     adminToken: process.env.ADMIN_TOKEN ?? '',
+    controlApiUrl: (process.env.CONTROL_API_URL ?? '').replace(/\/+$/, ''),
+    internalApiKey: process.env.INTERNAL_API_KEY ?? '',
   };
 }
 
