@@ -24,6 +24,8 @@ export interface RawProductData {
   url: string;
   externalId: string;
   imageUrl?: string;
+  brand?: string;
+  category?: string;
   availability?: string;
   rawHtml?: string;
 }
@@ -38,6 +40,8 @@ export interface NormalizedProduct {
   sku?: string;
   ean?: string;
   imageUrl?: string;
+  brand?: string;
+  category?: string;
   availability: 'in_stock' | 'out_of_stock' | 'unknown';
 }
 

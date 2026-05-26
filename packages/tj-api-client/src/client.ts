@@ -160,8 +160,8 @@ export class TjApiClient {
       availability: item.availability ?? 'in_stock',
       source: item.source ?? this.config.defaultSource ?? 'amazon_it',
       image_url: this.resolveFeedImageUrl(item),
-      brand: item.brand ?? null,
-      category: item.category ?? null,
+      brand: item.brand?.trim() || null,
+      category: item.category?.trim() || null,
       detected_at: item.detected_at ?? new Date().toISOString(),
     };
   }

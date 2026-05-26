@@ -102,8 +102,10 @@ async function executeExtractOnPage(
     externalId: normalized.externalId,
     price: normalized.price,
     currency: normalized.currency,
-    imageUrl: normalized.imageUrl ?? null,
-  });
+      imageUrl: normalized.imageUrl ?? null,
+      brand: normalized.brand ?? null,
+      category: normalized.category ?? null,
+    });
 
   return {
     success: true,

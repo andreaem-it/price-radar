@@ -10,6 +10,8 @@ import type {
 } from '@price-radar/types';
 import type { PlaywrightScraperPlugin } from '../../registry.js';
 import {
+  extractAmazonBrand,
+  extractAmazonCategory,
   extractAmazonImageUrl,
   extractAmazonPrice,
   extractExternalIdFromUrl,
@@ -81,6 +83,8 @@ export const amazonScraper: PlaywrightScraperPlugin = {
       (await readOptionalText('#availability'));
 
     const imageUrl = await extractAmazonImageUrl(page);
+    const brand = await extractAmazonBrand(page);
+    const category = await extractAmazonCategory(page);
 
     const externalId =
       params.externalId ??
@@ -94,6 +98,8 @@ export const amazonScraper: PlaywrightScraperPlugin = {
       url: params.url,
       externalId,
       imageUrl,
+      brand,
+      category,
       availability: availability?.trim(),
     };
   },
@@ -115,6 +121,8 @@ export const amazonScraper: PlaywrightScraperPlugin = {
       externalId: raw.externalId,
       availability: mapAvailability(raw.availability),
       imageUrl: raw.imageUrl,
+      brand: raw.brand,
+      category: raw.category,
     };
   },
 

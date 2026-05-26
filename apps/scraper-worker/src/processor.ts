@@ -110,8 +110,8 @@ export async function processScrapeJob(
             normalizeImageUrl(product.imageUrl) ??
             normalizeImageUrl(job.data.imageUrl) ??
             null,
-          brand: job.data.brand ?? null,
-          category: job.data.category ?? null,
+          brand: product.brand ?? job.data.brand ?? null,
+          category: product.category ?? job.data.category ?? null,
           detected_at: now,
         },
       ]);
@@ -125,6 +125,8 @@ export async function processScrapeJob(
           normalizeImageUrl(product.imageUrl) ??
           normalizeImageUrl(job.data.imageUrl) ??
           null,
+        brand: product.brand ?? job.data.brand ?? null,
+        category: product.category ?? job.data.category ?? null,
       });
     } catch (error) {
       const message =
