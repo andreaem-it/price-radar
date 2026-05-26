@@ -23,6 +23,7 @@ export interface AppConfig {
   tjApiFeedWriteKey: string;
   tjApiPerPage: number;
   tjApiSource: string;
+  adminToken: string;
 }
 
 function envInt(key: string, fallback: number): number {
@@ -56,6 +57,7 @@ export function loadConfig(): AppConfig {
     tjApiFeedWriteKey: process.env.PRICE_RADAR_FEED_WRITE_KEY ?? '',
     tjApiPerPage: envInt('TJ_API_PER_PAGE', 50),
     tjApiSource: process.env.TJ_API_SOURCE ?? 'amazon_it',
+    adminToken: process.env.ADMIN_TOKEN ?? '',
   };
 }
 

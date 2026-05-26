@@ -132,6 +132,7 @@ pnpm dev
 | GET | `/api/products/:id` | Dettaglio prodotto + storico prezzi |
 | GET | `/api/products/:id/price` | Ultimo prezzo |
 | GET | `/api/jobs` | Job di scraping |
+| GET | `/admin` | Dashboard admin (coda, sblocco) |
 
 ### Esempio: aggiungere un prodotto
 

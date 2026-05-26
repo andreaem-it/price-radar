@@ -12,3 +12,5 @@ export {
 } from './redis.js';
 export { createQueues, closeQueues, enqueueScrapeJob } from './queues.js';
 export type { QueueBundle } from './queues.js';
+export { getQueueOverview, unblockScrapeQueue } from './queue-admin.js';
+export type { QueueOverview, UnblockQueueResult } from './queue-admin.js';
