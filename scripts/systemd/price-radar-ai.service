@@ -1,0 +1,23 @@
+[Unit]
+Description=PriceRadar AI Worker
+After=network-online.target redis-server.service
+Wants=network-online.target
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=__PRICE_RADAR_USER__
+Group=__PRICE_RADAR_USER__
+WorkingDirectory=__APP_DIR__
+EnvironmentFile=__APP_DIR__/.env
+ExecStart=/usr/bin/node apps/ai-worker/dist/index.js
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+
+StandardOutput=append:__APP_DIR__/data/logs/ai-worker.log
+StandardError=append:__APP_DIR__/data/logs/ai-worker.log
+
+[Install]
+WantedBy=multi-user.target

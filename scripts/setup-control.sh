@@ -89,14 +89,15 @@ log "Verifica..."
 redis-cli ping
 sudo -u "$REAL_USER" bash -lc "cd '$APP_DIR' && node -v && pnpm -v"
 
+log "systemd (restart automatico)..."
+bash "$APP_DIR/scripts/install-systemd.sh" control
+
 cat <<EOF
 
 === VM1 CONTROL CONFIGURATA ===
 
-Avvia in 3 terminali (utente $REAL_USER):
-  cd $APP_DIR && pnpm dev:api
-  cd $APP_DIR && pnpm dev:scheduler
-  cd $APP_DIR && pnpm dev:ai
+Servizi systemd attivi (Restart=always):
+  sudo systemctl status price-radar-api price-radar-scheduler price-radar-ai
 
 Health check:
   curl http://localhost:3000/health

@@ -82,12 +82,15 @@ npx playwright install-deps chromium
 log "Verifica..."
 sudo -u "$REAL_USER" bash -lc "cd '$APP_DIR' && node -v && pnpm -v"
 
+log "systemd (restart automatico)..."
+bash "$APP_DIR/scripts/install-systemd.sh" scraper
+
 cat <<EOF
 
 === VM2 SCRAPER CONFIGURATA ===
 
-Avvia worker:
-  cd $APP_DIR && pnpm dev:scraper
+Servizio systemd attivo (Restart=always):
+  sudo systemctl status price-radar-scraper
 
 Verifica connessione Redis:
   redis-cli -h $CONTROL_IP ping
