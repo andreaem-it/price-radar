@@ -188,9 +188,13 @@
 
       function headers() {
         const token = getToken();
-        const h = { 'Content-Type': 'application/json' };
+        const h = {};
         if (token) h.Authorization = 'Bearer ' + token;
         return h;
+      }
+
+      function jsonHeaders() {
+        return { ...headers(), 'Content-Type': 'application/json' };
       }
 
       function showAlert(message, type = 'success') {
@@ -206,7 +210,7 @@
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          throw new Error(body.error || res.statusText || 'Request failed');
+          throw new Error(body.message || body.error || res.statusText || 'Request failed');
         }
         return res.json();
       }
@@ -320,7 +324,11 @@
         const btn = document.getElementById('unblock');
         btn.disabled = true;
         try {
-          const result = await api('/api/queue/unblock', { method: 'POST' });
+          const result = await api('/api/queue/unblock', {
+            method: 'POST',
+            headers: jsonHeaders(),
+            body: '{}',
+          });
           showAlert(
             'Sblocco completato: ' +
               result.result.resetCount +
