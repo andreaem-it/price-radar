@@ -69,10 +69,16 @@ export const amazonScraper: PlaywrightScraperPlugin = {
 
     const price = await extractAmazonPrice(page);
 
+    const readOptionalText = async (selector: string): Promise<string | null> => {
+      const locator = page.locator(selector).first();
+      if ((await locator.count()) === 0) return null;
+      return locator.textContent({ timeout: 2_000 }).catch(() => null);
+    };
+
     const availability =
-      (await page.locator('#availabilityInsideBuyBox_feature_div #availability').first().textContent()) ??
-      (await page.locator('#outOfStock').first().textContent()) ??
-      (await page.locator('#availability').first().textContent());
+      (await readOptionalText('#availabilityInsideBuyBox_feature_div #availability')) ??
+      (await readOptionalText('#outOfStock')) ??
+      (await readOptionalText('#availability'));
 
     const imageUrl = await extractAmazonImageUrl(page);
 
